@@ -1,9 +1,14 @@
-﻿using System.Net;
+﻿using System;
+using System.Collections.Generic;
+using System.Net;
+using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Threading.Channels;
 using PpsCli.Dtos;
+
+// just testing how to connect to the pps-api
 
 Console.WriteLine("starting app");
 
