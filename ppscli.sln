@@ -1,0 +1,22 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PpsCli.Tests", "PpsCli.Tests\PpsCli.Tests.csproj", "{5DB3448F-E2D0-4F45-A6EF-E5280E5E8C50}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PpsCli", "PpsCli\PpsCli.csproj", "{2598B26E-03D4-465C-93FD-A6554FC5CB29}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{5DB3448F-E2D0-4F45-A6EF-E5280E5E8C50}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5DB3448F-E2D0-4F45-A6EF-E5280E5E8C50}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5DB3448F-E2D0-4F45-A6EF-E5280E5E8C50}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5DB3448F-E2D0-4F45-A6EF-E5280E5E8C50}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2598B26E-03D4-465C-93FD-A6554FC5CB29}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2598B26E-03D4-465C-93FD-A6554FC5CB29}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2598B26E-03D4-465C-93FD-A6554FC5CB29}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2598B26E-03D4-465C-93FD-A6554FC5CB29}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
