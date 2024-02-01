@@ -7,13 +7,15 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Threading.Channels;
 using PpsCli.Dtos;
+using PpsCommon;
 
 // just testing how to connect to the pps-api
 
 Console.WriteLine("starting app");
 
 var domain = "localhost";
-var port = "10001";
+var port = ":10001";
+var baseUrl = $"https://{domain}{port}";
 
 var username = "user";
 var password = "password123";
@@ -27,32 +29,14 @@ noSslHandler.ServerCertificateCustomValidationCallback = (_msg, _cert, _chain, _
 var client = new HttpClient(noSslHandler);
 
 // get token from auth-endpoint
-var content = new FormUrlEncodedContent(new Dictionary<string, string>
-{
-    { "grant_type", "password" },
-    { "username", username },
-    { "password", password },
-});
-content.Headers.ContentType = new MediaTypeHeaderValue("application/json"); 
-
-var tokenUrl = $"https://{domain}:{port}/OAuth2/Token";
-Console.WriteLine($"Connecting with usr:{username} to url:{tokenUrl}");
-
-var authResponse = await client.PostAsync(tokenUrl, content);
-authResponse.EnsureSuccessStatusCode();
-var authorizationDto = await authResponse.Content.ReadFromJsonAsync<AuthorizationResponseDto>();
-Console.WriteLine(authorizationDto);
+var authResponse = await new AuthorizationClient(client).AuthorizeAsync(username, password, baseUrl);
+var token = authResponse.AccessToken;
 
 // get secret via uuid
-var token = authorizationDto.AccessToken;
-var uuid = "https://mini:10001/WebClient/Main?itemId=7c1736ec-7d29-435a-8bd1-16765987377e";
-var secretUrl = $"https://{domain}:{port}/api/v6/rest/credential/{uuid}";
-Console.WriteLine($"Connecting with usr:{username} to url:{tokenUrl}");
+var uuid = "7c1736ec-7d29-435a-8bd1-16765987377e";
+var secretUrl = $"{baseUrl}/api/v6/rest/credential/{uuid}";
+Console.WriteLine($"Connecting with usr:{username} to url:{baseUrl}");
 
-WebHeaderCollection headers = new WebHeaderCollection();
-headers.Add("Accept", "application/json");
-headers.Add("Authorization", $"Bearer {token}");
-headers.Add("Cache-Control", "no-cache");
 
 using (var request = new HttpRequestMessage(HttpMethod.Get, secretUrl))
 {

@@ -4,6 +4,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PpsCli.Tests", "PpsCli.Test
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PpsCli", "PpsCli\PpsCli.csproj", "{2598B26E-03D4-465C-93FD-A6554FC5CB29}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PpsCommon", "PpsCommon\PpsCommon.csproj", "{5A8BBA12-3D5D-4697-9584-1DF81DEB500A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -18,5 +20,9 @@ Global
 		{2598B26E-03D4-465C-93FD-A6554FC5CB29}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2598B26E-03D4-465C-93FD-A6554FC5CB29}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2598B26E-03D4-465C-93FD-A6554FC5CB29}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5A8BBA12-3D5D-4697-9584-1DF81DEB500A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5A8BBA12-3D5D-4697-9584-1DF81DEB500A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5A8BBA12-3D5D-4697-9584-1DF81DEB500A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5A8BBA12-3D5D-4697-9584-1DF81DEB500A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
