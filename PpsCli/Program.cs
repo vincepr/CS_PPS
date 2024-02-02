@@ -1,13 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Net;
-using System.Net.Http;
-using System.Net.Http.Headers;
-using System.Net.Http.Json;
+﻿using System.Net.Http.Headers;
 using System.Text.Json;
-using System.Threading.Channels;
-using PpsCli.Dtos;
 using PpsCommon;
+using PpsCommon.Models.PpsModels;
 
 // just testing how to connect to the pps-api
 
@@ -22,14 +16,16 @@ var password = "password123";
 
 
 // UNSAFE, disabling ssl-checking for testing:
-var noSslHandler = new HttpClientHandler();
-noSslHandler.ClientCertificateOptions = ClientCertificateOption.Manual;
-noSslHandler.ServerCertificateCustomValidationCallback = (_msg, _cert, _chain, _policy) => true;
+var noSslHandler = new HttpClientHandler()
+{
+    ClientCertificateOptions = ClientCertificateOption.Manual,
+    ServerCertificateCustomValidationCallback = (_, _, _, _) => true
+};
 
-var client = new HttpClient(noSslHandler);
+var client = new HttpClient(noSslHandler) { BaseAddress = new Uri(baseUrl) };
 
 // get token from auth-endpoint
-var authResponse = await new AuthorizationClient(client).AuthorizeAsync(username, password, baseUrl);
+var authResponse = await PpsAuth.AuthorizeAsync(client, username, password);
 var token = authResponse.AccessToken;
 
 // get secret via uuid
@@ -44,5 +40,20 @@ using (var request = new HttpRequestMessage(HttpMethod.Get, secretUrl))
     request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
     request.Headers.Add("Cache-Control", "no-cache");
     var response = await client.SendAsync(request);
-    Console.WriteLine(await response.Content.ReadAsStringAsync());
+    // Console.WriteLine(await response.Content.ReadAsStringAsync());
 }
+
+var seriOpts = new JsonSerializerOptions()
+{
+    WriteIndented = true
+};
+var ppsClient = new PpsClient(client, authResponse, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+var resp = await ppsClient.GetEntireTree();
+Console.WriteLine(JsonSerializer.Serialize(resp, seriOpts));
+
+var about = await ppsClient.GetAboutServer();
+Console.WriteLine(JsonSerializer.Serialize(about, seriOpts));
+
+var pwStrength = await ppsClient.PostPasswordStrength("123");
+Console.WriteLine(JsonSerializer.Serialize(pwStrength, seriOpts));
+
