@@ -1,19 +1,18 @@
 using System.Net.Http.Headers;
 using System.Text.Json;
-using PpsCommon.Dtos;
 
-namespace PpsCommon;
+namespace PpsCommon.Auth;
 
 public class PpsTokenStore
 {
+    private const string AUTH_ENDPOINT = "/OAuth2/Token";
+    
     private static readonly SemaphoreSlim AccessSemaphore;
     private readonly string _username;
     private readonly string _password;
     private PpsToken? _token;
     private readonly HttpClient _httpClient;
     private readonly JsonSerializerOptions _jsonOptions;
-
-    private const string AUTH_ENDPOINT = "/OAuth2/Token";
 
     static PpsTokenStore()
     {
@@ -28,7 +27,7 @@ public class PpsTokenStore
         _jsonOptions = jsonOptions;
     }
     
-    public async Task<string> GetToken()
+    public async Task<string> Fetch()
     {
         try
         {
@@ -38,6 +37,7 @@ public class PpsTokenStore
             {
                 return _token.AccessToken;
             }
+            
             using var request = new HttpRequestMessage(HttpMethod.Post, AUTH_ENDPOINT);
             request.Content = new FormUrlEncodedContent(new Dictionary<string, string>
             {
