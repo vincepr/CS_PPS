@@ -6,11 +6,7 @@ public record CredentialGroup
 {
     public required Guid Id { get; init; }
     public required string Name { get; set; }
-    
-    // are these wrong in the model from the site:
-    public string? Password { get; set; }
-    public Guid? GroupId { get; set; }
-    public string? Url { get; set; }
+    public required Guid ParentId { get; set; }
     
     public string? Notes { get; set; }
     public DateTimeOffset? Expires { get; set; }

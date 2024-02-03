@@ -4,8 +4,8 @@ namespace PpsCommon.Models.PpsModels;
 public record Attachment
 {
     public required Guid CredentialObjectId { get; set; }
-    public required string FieldName { get; set; }
-    public required byte[] FileData { get; set; }
-    
+    public Guid? AttachmentId { get; init; }
+    public required string FileName { get; set; }
+    public byte[]? FileData { get; set; }
     public long? FileSize { get; init; }
 }

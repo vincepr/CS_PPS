@@ -8,6 +8,7 @@ public record Credential
     public required Guid GroupId { get; set; }
 
     public string? Name { get; set; }
+    public string? Username { get; set; } 
     public string? Password { get; set; }
     public string? Url { get; set; }
     public string? Notes { get; set; }
@@ -21,4 +22,6 @@ public record Credential
     public required bool HasModifyEntriesAccess { get; init; }
     public required bool HasViewEntryContentsAccess { get; init; }
     public required CommentPrompt CommentPrompts { get; init; }
+    
+    public List<Attachment>? Attachments { get; init; }
 }

@@ -16,7 +16,7 @@ public class PpsToken(string accessToken,
     public int ExpiresIn { get; init; } = expiresIn;
     
     /// <summary>
-    /// Converted DateTime from int(in seconds) we received.
+    /// Converted DateTime from the int(in seconds) we received.
     /// </summary>
     private DateTime ExpiresInDate { get; } = DateTime.UtcNow.AddSeconds(expiresIn);
     
