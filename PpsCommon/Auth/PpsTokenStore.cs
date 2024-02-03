@@ -1,4 +1,5 @@
 using System.Net.Http.Headers;
+using System.Security.Authentication;
 using System.Text.Json;
 
 namespace PpsCommon.Auth;
@@ -6,6 +7,7 @@ namespace PpsCommon.Auth;
 public class PpsTokenStore
 {
     private const string AUTH_ENDPOINT = "/OAuth2/Token";
+    private const int MAX_RETRIES = 3;
     
     private static readonly SemaphoreSlim AccessSemaphore;
     private readonly string _username;
@@ -37,28 +39,44 @@ public class PpsTokenStore
             {
                 return _token.AccessToken;
             }
-            
-            using var request = new HttpRequestMessage(HttpMethod.Post, AUTH_ENDPOINT);
-            request.Content = new FormUrlEncodedContent(new Dictionary<string, string>
+
+            for (var retries = 0; retries < MAX_RETRIES + 1; retries++)
             {
-                { "grant_type", "password" },
-                { "username", _username },
-                { "password", _password },
-            });
-            request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
-                
-            using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
-            response.EnsureSuccessStatusCode();
-                
-            await using var responseContentStream = await response.Content.ReadAsStreamAsync();
-            var token = await JsonSerializer.DeserializeAsync<PpsToken>(responseContentStream, _jsonOptions);
-                
-            _token = token ?? throw new JsonException("Failed to deserialize AccessToken to JSON.");
-            return _token.AccessToken;
+                try
+                {
+                    var token = await RequestToken();
+                    _token = token ?? throw new JsonException("Failed to deserialize AccessToken to JSON.");
+                    return _token.AccessToken;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Failed to retrieve {nameof(PpsToken)} for Pps-Authorization with: {ex.Message}");
+                }
+            }
+            
+            throw new AuthenticationException($"Failed to retrieve {nameof(PpsToken)} for Pps-Authorization after {MAX_RETRIES} retries.");
         }
         finally
         {
             AccessSemaphore.Release(1);
         }
+    }
+
+    private async Task<PpsToken?> RequestToken()
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, AUTH_ENDPOINT);
+        request.Content = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            { "grant_type", "password" },
+            { "username", _username },
+            { "password", _password },
+        });
+        request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+                
+        using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+        response.EnsureSuccessStatusCode();
+                
+        await using var responseContentStream = await response.Content.ReadAsStreamAsync();
+        return await JsonSerializer.DeserializeAsync<PpsToken>(responseContentStream, _jsonOptions);
     }
 }

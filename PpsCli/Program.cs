@@ -1,5 +1,6 @@
 ﻿using System.Text.Json;
 using PpsCommon;
+using PpsCommon.PpsClientExtensions;
 
 // just testing how to connect to the pps-api
 
@@ -14,22 +15,22 @@ var password = "password123";
 
 
 // UNSAFE, settings for testing only. (SSL-Disabled!)
-var noSslHandler = new HttpClientHandler()
+var noSslClient = new HttpClient(new HttpClientHandler()
 {
     ClientCertificateOptions = ClientCertificateOption.Manual,
     ServerCertificateCustomValidationCallback = (_, _, _, _) => true
-};
-var client = new HttpClient(noSslHandler) { BaseAddress = new Uri(baseUrl) };
-var jsonOptions = new JsonSerializerOptions() { WriteIndented = true };
+});
 
 // create the ppsClient
-var ppsClient = await PpsClient.NewAsync(baseUrl, username, password, client);
-var resp = await ppsClient.GetEntireTree();
-Console.WriteLine(JsonSerializer.Serialize(resp, jsonOptions));
+var ppsClient = await PpsClient.NewAsync(baseUrl, username, password, noSslClient);
+var jsonOptions = new JsonSerializerOptions() { WriteIndented = true };
 
-var about = await ppsClient.GetAboutServer();
+var root = await ppsClient.GetEntireTree();
+Console.WriteLine(JsonSerializer.Serialize(root, jsonOptions));
+
+var about = await ppsClient.AboutServer();
 Console.WriteLine(JsonSerializer.Serialize(about, jsonOptions));
 
-var pwStrength = await ppsClient.PostPasswordStrength("123");
+var pwStrength = await ppsClient.PostPasswordStrength("password123");
 Console.WriteLine(JsonSerializer.Serialize(pwStrength, jsonOptions));
 

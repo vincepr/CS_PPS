@@ -2,8 +2,6 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using PpsCommon.Auth;
-using PpsCommon.Dtos;
-using PpsCommon.Models.PpsModels;
 
 namespace PpsCommon;
 
@@ -39,37 +37,31 @@ public class PpsClient
         _tokenStore = tokenStore;
         _jsonOpts = jsonOptions;
     }
-   
-    public Task<CredentialGroup> GetEntireTree() => GenericGet<CredentialGroup>("/api/v5/rest/folders/");
-    public Task<AboutServer> GetAboutServer() => GenericGet<AboutServer>("/api/v5/rest/about/");
-    public Task<PasswordStrength> PostPasswordStrength(string testPassword) 
-        => GenericPost<PasswordStrengthRequestDto, PasswordStrength>(new PasswordStrengthRequestDto(testPassword),
-            "/api/v5/rest/passwordstrength");
 
-    public async Task<TResponse> GenericGet<TResponse>(string relativeUri)
+    public async Task<TResponse> GenericGet<TResponse>(string relativeUri, CancellationToken workToken = default)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, relativeUri);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", await _tokenStore.Fetch());
         
-        var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+        var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, workToken);
         response.EnsureSuccessStatusCode();
-        await using var responseContentStream = await response.Content.ReadAsStreamAsync();
+        await using var responseContentStream = await response.Content.ReadAsStreamAsync(workToken);
         
-        TResponse? model = await JsonSerializer.DeserializeAsync<TResponse>(responseContentStream, _jsonOpts);
+        TResponse? model = await JsonSerializer.DeserializeAsync<TResponse>(responseContentStream, _jsonOpts, workToken);
         return model ?? throw new JsonException($"Failed to deserialize Json, for {typeof(TResponse)}");
     }
 
-    public async Task<TResponse> GenericPost<TBody, TResponse>(TBody body, string relativeUri)
+    public async Task<TResponse> GenericPost<TBody, TResponse>(TBody body, string relativeUri, CancellationToken workToken = default)
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, relativeUri);
         request.Content = new StringContent(JsonSerializer.Serialize(body, _jsonOpts), Encoding.UTF8, "application/json");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", await _tokenStore.Fetch());
         
-        var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+        var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, workToken);
         response.EnsureSuccessStatusCode();
-        await using var responseContentStream = await response.Content.ReadAsStreamAsync();
+        await using var responseStream = await response.Content.ReadAsStreamAsync(workToken);
         
-        TResponse? model = await JsonSerializer.DeserializeAsync<TResponse>(responseContentStream, _jsonOpts);
+        TResponse? model = await JsonSerializer.DeserializeAsync<TResponse>(responseStream, _jsonOpts, workToken);
         return model ?? throw new JsonException($"Failed to deserialize Json, for {typeof(TResponse)}");
     }    
 }
