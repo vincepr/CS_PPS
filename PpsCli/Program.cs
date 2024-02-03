@@ -49,11 +49,11 @@ var seriOpts = new JsonSerializerOptions()
 };
 var ppsClient = new PpsClient(client, authResponse, new JsonSerializerOptions(JsonSerializerDefaults.Web));
 var resp = await ppsClient.GetEntireTree();
-Console.WriteLine(JsonSerializer.Serialize(resp, seriOpts));
+// Console.WriteLine(JsonSerializer.Serialize(resp, seriOpts));
 
 var about = await ppsClient.GetAboutServer();
-Console.WriteLine(JsonSerializer.Serialize(about, seriOpts));
+// Console.WriteLine(JsonSerializer.Serialize(about, seriOpts));
 
 var pwStrength = await ppsClient.PostPasswordStrength("123");
-Console.WriteLine(JsonSerializer.Serialize(pwStrength, seriOpts));
+// Console.WriteLine(JsonSerializer.Serialize(pwStrength, seriOpts));
 

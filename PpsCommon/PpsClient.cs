@@ -13,12 +13,13 @@ public class PpsClient
     private readonly string _token; // TODO: build actual token-store: https://josef.codes/dealing-with-access-tokens-in-dotnet/
     private readonly JsonSerializerOptions _jsonOpts;
 
-    public PpsClient(HttpClient httpClient, AuthorizationResponseDto credentials, JsonSerializerOptions jsonOptions)
+    public PpsClient(HttpClient httpClient, PpsToken credentials, JsonSerializerOptions jsonOptions)
     {
         _httpClient = httpClient;
         _token = credentials.AccessToken;
         _jsonOpts = jsonOptions;
         
+        // setup http client
         _httpClient.DefaultRequestHeaders.Clear();
         _httpClient.DefaultRequestHeaders.Add("Cache-Control", "no-cache");
         _httpClient.DefaultRequestHeaders.Add("Accept", "application/json");

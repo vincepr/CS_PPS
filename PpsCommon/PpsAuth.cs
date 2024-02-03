@@ -14,7 +14,7 @@ public static class PpsAuth
     /// <param name="password">Password used to fetch credentials.</param>
     /// <param name="baseUrl">BaseUrl to the pps-server. Without /OAuth2/Token.</param>
     /// <returns></returns>
-    public static async Task<AuthorizationResponseDto> AuthorizeAsync(
+    public static async Task<PpsToken> AuthorizeAsync(
         HttpClient httpClient, string username, string password)
     {
         var content = new FormUrlEncodedContent(new Dictionary<string, string>
@@ -30,7 +30,7 @@ public static class PpsAuth
 
         var authResponse = await httpClient.PostAsync(tokenUrl, content);
         authResponse.EnsureSuccessStatusCode();
-        var authorizationDto = (await authResponse.Content.ReadFromJsonAsync<AuthorizationResponseDto>())!;
+        var authorizationDto = (await authResponse.Content.ReadFromJsonAsync<PpsToken>())!;
         Console.WriteLine("received Token of Type: " + authorizationDto.TokenType);
         return authorizationDto;
     }

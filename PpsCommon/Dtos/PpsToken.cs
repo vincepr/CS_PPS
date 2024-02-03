@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace PpsCommon.Dtos;
 
-public class AuthorizationResponseDto(string accessToken,
+public class PpsToken(string accessToken,
     string tokenType,
     int expiresIn)
 {
@@ -14,4 +14,15 @@ public class AuthorizationResponseDto(string accessToken,
 
     [JsonPropertyName("expires_in")]
     public int ExpiresIn { get; init; } = expiresIn;
+    
+    /// <summary>
+    /// Converted DateTime from int(in seconds) received.
+    /// </summary>
+    private DateTime ExpiresInDate { get; } = DateTime.UtcNow.AddSeconds(expiresIn);
+    
+    /// <summary>
+    /// Calculates if token has expired. Expires Tokens 5 Minute early to make sure nothing overlaps. 
+    /// </summary>
+    public bool IsExpired => DateTime.UtcNow >= ExpiresInDate.AddMinutes(-5);
+
 }
