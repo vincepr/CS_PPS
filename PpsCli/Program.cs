@@ -3,9 +3,8 @@ using System.Text.Json;
 using PpsCommon;
 using PpsCommon.PpsClientExtensions;
 using Cocona;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using PpsCommon.Models.PpsModels;
+using PpsCli;
 
 PpsClientConfiguration? config = null;
 try
@@ -38,24 +37,26 @@ var app = builder.Build();
 
 app.AddCommand("legacy", async (
     CoconaAppContext ctx,
-    [Argument(Description = "Path to a .json file or folder with the files.")]
-    string filepath,
-    [Option('f', Description = "create simply legacy files instead.")]
-    bool legacy
+    [Argument(Description = "Path to a .json file to parse")] [FileExists] string filepath,
+    OutputParams outputParams
 ) =>
 {
-    Console.WriteLine($"running on file: '{filepath}' legacymode:{legacy}");
-
-    var logger = app.Services.GetService<ILogger<Program>>()!;
-    logger.LogInformation("logging");
-    while (!ctx.CancellationToken.IsCancellationRequested)
+    var content = await SecretsFile.Build(client, filepath, ctx.CancellationToken);
+    if (outputParams.Output is not null)
     {
-        await Task.Delay(100, cancellationToken: ctx.CancellationToken);
+        WriteToFile(outputParams, content);
+        Console.WriteLine($"successfully generated from file: '{filepath}' to: {outputParams.Output}");
     }
+    else
+    {
+        Console.WriteLine(content);
+    }
+    // var logger = app.Services.GetService<ILogger<Program>>()!;
+    // logger.LogInformation("logging");
 });
 
 app.AddCommand("server-info", async (OutputParams outputParams)
-        => HandleJsonRequest<AboutServer>(outputParams, await client.AboutServer()))
+        => HandleJsonRequest(outputParams, await client.AboutServer()))
     .WithDescription("Returns info about the pps-server's configuration");
 
 app.AddCommand("folder-root", async (OutputParams outputParams)
@@ -152,10 +153,10 @@ public record OutputParams(
     bool Append
 ) : ICommandParameterSet;
 
-public class FolderExists : ValidationAttribute
+public class FileExists : ValidationAttribute
 {
     protected override ValidationResult? IsValid(object? value, ValidationContext validationContext)
-        => value is string path && Directory.Exists(path)
-            ? ValidationResult.Success!
+        => value is string path && File.Exists(path) //|| Directory.Exists(path)
+            ? ValidationResult.Success
             : new ValidationResult($"The path '{value}' is not found.");
 }

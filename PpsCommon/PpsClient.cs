@@ -106,6 +106,11 @@ public class PpsClient
 #if DEBUG
         Console.WriteLine("response = \n" + await response.Content.ReadAsStringAsync(workToken));
 #endif
-        return await response.Content.ReadAsStringAsync(workToken);
+        var stringResponse =  (await response.Content.ReadAsStringAsync(workToken));
+        
+        // Trim leading and trailing '"'
+        if (stringResponse.StartsWith('"') && stringResponse.EndsWith('"'))
+            stringResponse = stringResponse.Substring(1, stringResponse.Length - 2);
+        return stringResponse;
     }
 }
