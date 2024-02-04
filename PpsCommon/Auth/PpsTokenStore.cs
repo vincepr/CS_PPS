@@ -21,10 +21,10 @@ public class PpsTokenStore
         AccessSemaphore = new SemaphoreSlim(initialCount:1 ,maxCount: 1);
     }
 
-    public PpsTokenStore(string username, string password, HttpClient httpClient, JsonSerializerOptions jsonOptions)
+    public PpsTokenStore(PpsClientConfiguration config, HttpClient httpClient, JsonSerializerOptions jsonOptions)
     {
-        _username = username;
-        _password = password;
+        _username = config.Username;
+        _password = config.Password;
         _httpClient = httpClient;
         _jsonOptions = jsonOptions;
     }

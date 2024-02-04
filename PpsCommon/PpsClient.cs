@@ -11,31 +11,39 @@ public class PpsClient
     private readonly PpsTokenStore _tokenStore;
     private readonly JsonSerializerOptions _jsonOpts;
 
-    public static async Task<PpsClient> NewAsync(string baseUrl, string username, string password, HttpClient httpClient, JsonSerializerOptions jsonOptions)
-    {
-        httpClient.BaseAddress = new Uri(baseUrl);
+    // public static async Task<PpsClient> NewAsync(string baseUrl, string username, string password, HttpClient httpClient, JsonSerializerOptions jsonOptions)
+    // {
+    //     httpClient.BaseAddress = new Uri(baseUrl);
+    //     httpClient.DefaultRequestHeaders.Clear();
+    //     httpClient.DefaultRequestHeaders.Add("Cache-Control", "no-cache");
+    //     httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
+    //     
+    //     var tokenStore = new PpsTokenStore(username, password, httpClient, jsonOptions);
+    //     await tokenStore.Fetch();
+    //     
+    //     var ppsClient = new PpsClient(httpClient, tokenStore, jsonOptions);
+    //     return ppsClient;
+    // }
+    //
+    // public static async Task<PpsClient> NewAsync(string baseUrl, string username, string password)
+    //     => await PpsClient.NewAsync(baseUrl, username, password, new HttpClient());
+    //
+    // public static async Task<PpsClient> NewAsync(string baseUrl, string username, string password, HttpClient httpClient)
+    //     => await PpsClient.NewAsync(baseUrl, username, password, httpClient, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+    private PpsClient(PpsClientConfiguration config, HttpClient httpClient, PpsTokenStore tokenStore, JsonSerializerOptions jsonOptions)
+    { 
+        httpClient.BaseAddress = new Uri(config.BaseUrl);
         httpClient.DefaultRequestHeaders.Clear();
         httpClient.DefaultRequestHeaders.Add("Cache-Control", "no-cache");
         httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
-        
-        var tokenStore = new PpsTokenStore(username, password, httpClient, jsonOptions);
-        await tokenStore.Fetch();
-        
-        var ppsClient = new PpsClient(httpClient, tokenStore, jsonOptions);
-        return ppsClient;
-    }
-
-    public static async Task<PpsClient> NewAsync(string baseUrl, string username, string password)
-        => await PpsClient.NewAsync(baseUrl, username, password, new HttpClient());
-
-    public static async Task<PpsClient> NewAsync(string baseUrl, string username, string password, HttpClient httpClient)
-        => await PpsClient.NewAsync(baseUrl, username, password, httpClient, new JsonSerializerOptions(JsonSerializerDefaults.Web));
-
-    private PpsClient(HttpClient httpClient, PpsTokenStore tokenStore, JsonSerializerOptions jsonOptions)
-    {
         _httpClient = httpClient;
         _tokenStore = tokenStore;
         _jsonOpts = jsonOptions;
+        
+       
+        
+        // var tokenStore = new PpsTokenStore(config.Username, config.Password, httpClient, jsonOptions);
     }
 
     public async Task<TResponse> GenericGet<TResponse>(string relativeUri, CancellationToken workToken = default)
