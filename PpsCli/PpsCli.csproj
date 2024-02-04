@@ -15,4 +15,10 @@
       <PackageReference Include="Cocona" Version="2.2.0" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Reference Include="PpsCli">
+        <HintPath>bin\Debug\net8.0\PpsCli.dll</HintPath>
+      </Reference>
+    </ItemGroup>
+
 </Project>

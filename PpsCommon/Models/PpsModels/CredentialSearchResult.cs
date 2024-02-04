@@ -8,6 +8,7 @@ public record CredentialSearchResult
     public required string Username { get; init; }
     public required string Url { get; init; }
     public required string Notes { get; init; }
+    public string? Tags { get; init; }
     public required Guid GroupId { get; init; }
-    public required Guid Path { get; init; }
+    public required string Path { get; init; }
 }

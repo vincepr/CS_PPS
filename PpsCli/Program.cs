@@ -1,34 +1,22 @@
-﻿using System.ComponentModel.DataAnnotations;using System.Text.Json;
+﻿using System.ComponentModel.DataAnnotations;
+using System.Text.Json;
 using PpsCommon;
 using PpsCommon.PpsClientExtensions;
 using Cocona;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using PpsCommon.Models.PpsModels;
 
-
-var domain = "localhost";
-var port = ":10001";
-
-
-PpsClientConfiguration ppsConfig;
+PpsClientConfiguration? config = null;
 try
 {
-    ppsConfig = PpsClientConfiguration.ParseEnvironmentVariables();
+    config = PpsClientConfiguration.ParseEnvironmentVariables();
 }
 catch (Exception ex)
 {
-    Console.Error.WriteLine($"Error: {ex.Message}. [PPS_BASEURL PPS_USERNAME PPS_PASSWORD] must be set.");
+    Console.Error.WriteLine($"Error: {ex.Message}. [PPS_URL PPS_USERNAME PPS_PASSWORD] must be set.");
     Environment.Exit(1);
 }
-
-var baseUrl = Environment.GetEnvironmentVariable("PPS_BASEURL") ?? throw new Exception("need baseUrl");
-// $"https://{domain}{port}";
-var username = Environment.GetEnvironmentVariable("PPS_USERNAME");
-// user
-var password = Environment.GetEnvironmentVariable("PPS_PASSWORD");
-// password123
 
 // UNSAFE, settings for testing only. (SSL-Disabled!)
 var noSslClient = new HttpClient(new HttpClientHandler()
@@ -36,7 +24,7 @@ var noSslClient = new HttpClient(new HttpClientHandler()
     ClientCertificateOptions = ClientCertificateOption.Manual,
     ServerCertificateCustomValidationCallback = (_, _, _, _) => true
 });
-var client = await PpsClient.NewAsync(baseUrl, username, password, noSslClient);
+var client = await PpsClient.NewAsync(config.Url, config.Username, config.Password, noSslClient);
 
 var builder = CoconaApp.CreateBuilder();
 
@@ -50,9 +38,10 @@ var app = builder.Build();
 
 app.AddCommand("legacy", async (
     CoconaAppContext ctx,
-    [Argument(Description = "Path to a .json file or folder with the files.")] string filepath,
-    [Option('f', Description = "create simply legacy files instead.")] bool legacy
-    
+    [Argument(Description = "Path to a .json file or folder with the files.")]
+    string filepath,
+    [Option('f', Description = "create simply legacy files instead.")]
+    bool legacy
 ) =>
 {
     Console.WriteLine($"running on file: '{filepath}' legacymode:{legacy}");
@@ -65,83 +54,108 @@ app.AddCommand("legacy", async (
     }
 });
 
-app.AddCommand("server-info" , async (OutputParams outputParams) 
-    => HandleJsonRequest(outputParams, await client.AboutServer()))
+app.AddCommand("server-info", async (OutputParams outputParams)
+        => HandleJsonRequest<AboutServer>(outputParams, await client.AboutServer()))
     .WithDescription("Returns info about the pps-server's configuration");
 
-app.AddCommand("root", async (OutputParams outputParams) 
-    => HandleJsonRequest(outputParams, await client.GetRoot()))
+app.AddCommand("folder-root", async (OutputParams outputParams)
+        => HandleJsonRequest(outputParams, await client.GetFolderRoot()))
     .WithDescription("Gets the whole tree the user can see. Passwords are not included in this view");
 
+app.AddCommand("folder", async (OutputParams outputParams, [Argument] string groupId)
+        => HandleJsonRequest(outputParams, await client.GetFolderRoot()))
+    .WithDescription("Gets everything inside provided folder");
+
 app.AddCommand("pw-strength", async (OutputParams outputParams, [Argument] string testPassword)
-    => HandleJsonRequest(outputParams, await client.PostPasswordStrength(testPassword)))
+        => HandleJsonRequest(outputParams, await client.PostPasswordStrength(testPassword)))
     .WithDescription("For input password, returns a numerical value about it's strength");
+
+app.AddCommand("offline-package-available", async (OutputParams outputParams)
+        => HandleStringRequest(outputParams, (await client.IsOfflineAvailable()).ToString()))
+    .WithDescription("Returns bool if user has ability to get offline access to credentials");
+
+app.AddCommand("offline-package", async (OutputParams outputParams)
+        => HandleJsonRequest(outputParams, await client.GetFolderRoot()))
+    .WithDescription("Gets the whole offline package. Attached-Files included");
+
+app.AddCommand("search", async (OutputParams outputParams, [Argument] string searchTerm)
+        => HandleJsonRequest(outputParams, await client.Search(searchTerm)))
+    .WithDescription("Returns Entries or Folders that match the search term");
+
+app.AddCommand("credential", async (OutputParams outputParams, [Argument] Guid id)
+        => HandleJsonRequest(outputParams, await client.GetCredential(id)))
+    .WithDescription("Returns the Credential for provided guid-id");
+
+app.AddCommand("entry", async (OutputParams outputParams, [Argument] Guid id)
+        => HandleJsonRequest(outputParams, await client.GetEntry(id)))
+    .WithDescription("Returns the Entry for provided guid-id");
+
+app.AddCommand("password", async (OutputParams outputParams, [Argument] Guid id)
+        => HandleStringRequest(outputParams, await client.GetPassword(id)))
+    .WithDescription("Returns the Password for of the Entry of provided guid-id");
+
+app.AddCommand("client-configuration", async (OutputParams outputParams, [Argument] string clientName)
+        => HandleJsonRequest(outputParams, await client.ClientConfiguration(clientName)))
+    .WithDescription("Returns the server-enforced client configuration");
 
 app.Run();
 
-static void HandleJsonRequest<T>(OutputParams outputParams, T obj, bool writeIndented = true) 
-    => HandleCommonParameters(outputParams, JsonSerializer.Serialize(
+
+
+
+
+
+
+
+
+static void HandleJsonRequest<T>(OutputParams outputParams, T obj, bool writeIndented = true)
+    => HandleStringRequest(outputParams, JsonSerializer.Serialize(
         obj, new JsonSerializerOptions { WriteIndented = writeIndented }));
 
-static void HandleCommonParameters(OutputParams outputParams, string output)
+static void HandleStringRequest(OutputParams outputParams, string output)
 {
-    if (outputParams.output is null)
+    if (outputParams.Output is null)
     {
         Console.WriteLine(output);
     }
     else
     {
         WriteToFile(outputParams, output);
-        Console.WriteLine($"successfully wrote file: {Path.GetFullPath(outputParams.output)}");
+        Console.WriteLine($"successfully wrote file: {Path.GetFullPath(outputParams.Output)}");
     }
 }
 
 static void WriteToFile(OutputParams outputParams, string text)
 {
-        var directoryPath = Path.GetDirectoryName(outputParams.output);
-        if(!Directory.Exists(directoryPath) && !string.IsNullOrEmpty(directoryPath))
-        {
-            Directory.CreateDirectory(directoryPath);
-        }
+    var directoryPath = Path.GetDirectoryName(outputParams.Output);
+    if (!Directory.Exists(directoryPath) && !string.IsNullOrEmpty(directoryPath))
+    {
+        Directory.CreateDirectory(directoryPath);
+    }
 
-        string fullPath = Path.GetFullPath(outputParams.output!);
-        if (outputParams.append && File.Exists(fullPath))
-        {
-            text = $"{Environment.NewLine}{text}";
-            File.AppendAllText(fullPath, text);
-        }
-        else
-        { 
-            File.WriteAllText(fullPath, text);
-        }
+    string fullPath = Path.GetFullPath(outputParams.Output!);
+    if (outputParams.Append && File.Exists(fullPath))
+    {
+        text = $"{Environment.NewLine}{text}";
+        File.AppendAllText(fullPath, text);
+    }
+    else
+    {
+        File.WriteAllText(fullPath, text);
+    }
 }
 
 public record OutputParams(
-    [Option('o', Description = "Write the output into a file instead of to std-out.")] string? output,
-    [Option(Description = "When writing to a file append instead of overwrite.")] bool append
-    ) : ICommandParameterSet;
+    [Option('o', Description = "Write the output into a file instead of to std-out.")]
+    string? Output,
+    [Option(Description = "When writing to a file append instead of overwrite.")]
+    bool Append
+) : ICommandParameterSet;
 
 public class FolderExists : ValidationAttribute
 {
-    protected override ValidationResult? IsValid(object? value, ValidationContext validationContext) 
-        => value is string path && Directory.Exists(path) 
-            ? ValidationResult.Success! 
+    protected override ValidationResult? IsValid(object? value, ValidationContext validationContext)
+        => value is string path && Directory.Exists(path)
+            ? ValidationResult.Success!
             : new ValidationResult($"The path '{value}' is not found.");
 }
-
-// Console.WriteLine("starting app");
-//
-
-// // create the ppsClient
-// var ppsClient = await PpsClient.NewAsync(baseUrl, username, password, noSslClient);
-// var jsonOptions = new JsonSerializerOptions() { WriteIndented = true };
-//
-// var root = await ppsClient.GetEntireTree();
-// Console.WriteLine(JsonSerializer.Serialize(root, jsonOptions));
-//
-// var about = await ppsClient.AboutServer();
-// Console.WriteLine(JsonSerializer.Serialize(about, jsonOptions));
-//
-// var pwStrength = await ppsClient.PostPasswordStrength("password123");
-// Console.WriteLine(JsonSerializer.Serialize(pwStrength, jsonOptions));
-//

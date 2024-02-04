@@ -21,10 +21,10 @@ public class PpsTokenStore
         AccessSemaphore = new SemaphoreSlim(initialCount:1 ,maxCount: 1);
     }
 
-    public PpsTokenStore(PpsClientConfiguration config, HttpClient httpClient, JsonSerializerOptions jsonOptions)
+    public PpsTokenStore(string username, string password, HttpClient httpClient, JsonSerializerOptions jsonOptions)
     {
-        _username = config.Username;
-        _password = config.Password;
+        _username = username;
+        _password = password;
         _httpClient = httpClient;
         _jsonOptions = jsonOptions;
     }
@@ -50,7 +50,7 @@ public class PpsTokenStore
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Failed to retrieve {nameof(PpsToken)} for Pps-Authorization with: {ex.Message}");
+                    await Console.Error.WriteLineAsync($"Failed to retrieve {nameof(PpsToken)} for Pps-Authorization to {_httpClient.BaseAddress} with: {ex.Message}");
                 }
             }
             
