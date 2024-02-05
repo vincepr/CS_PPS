@@ -1,7 +1,6 @@
 namespace PpsCli;
 
 public record SecretsFileEntry(
-    string SecretName,
     Guid Id,
     string Name,
     string Username,

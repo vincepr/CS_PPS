@@ -41,7 +41,7 @@ app.AddCommand("legacy", async (
     OutputParams outputParams
 ) =>
 {
-    var content = await SecretsFile.Build(client, filepath, ctx.CancellationToken);
+    var content = await SecretsFile.BuildJsonString(client, filepath, ctx.CancellationToken);
     if (outputParams.Output is not null)
     {
         WriteToFile(outputParams, content);
@@ -51,8 +51,6 @@ app.AddCommand("legacy", async (
     {
         Console.WriteLine(content);
     }
-    // var logger = app.Services.GetService<ILogger<Program>>()!;
-    // logger.LogInformation("logging");
 });
 
 app.AddCommand("server-info", async (OutputParams outputParams)
