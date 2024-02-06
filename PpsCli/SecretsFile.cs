@@ -29,7 +29,6 @@ public static class SecretsFile
         {
             var entry = await ppsClient.GetEntry(id);
             var password = await ppsClient.GetPassword(id);
-            Console.WriteLine(password);
             secrets.Add(useSecretName ? secretName : id.ToString(), new SecretsFileEntry(
                 Id: id,
                 Name: entry.Name ?? "",

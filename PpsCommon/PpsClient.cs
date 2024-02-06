@@ -11,34 +11,23 @@ public class PpsClient
     private readonly PpsTokenStore _tokenStore;
     private readonly JsonSerializerOptions _jsonOpts;
 
-    public static async Task<PpsClient> NewAsync(string baseUrl, string username, string password,
-        HttpClient httpClient, JsonSerializerOptions jsonOptions)
+    public PpsClient(PpsClientConfiguration config, HttpClient httpClient, JsonSerializerOptions jsonOptions)
     {
-        httpClient.BaseAddress = new Uri(baseUrl);
+        httpClient.BaseAddress = new Uri(config.Url);
         httpClient.DefaultRequestHeaders.Clear();
         httpClient.DefaultRequestHeaders.Add("Cache-Control", "no-cache");
         httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
 
-        var tokenStore = new PpsTokenStore(username, password, httpClient, jsonOptions);
-        await tokenStore.Fetch();
+        var tokenStore = new PpsTokenStore(config.Username, config.Password, httpClient, jsonOptions);
 
-        var ppsClient = new PpsClient(httpClient, tokenStore, jsonOptions);
-        return ppsClient;
-    }
-
-    public static async Task<PpsClient> NewAsync(string baseUrl, string username, string password)
-        => await NewAsync(baseUrl, username, password, new HttpClient());
-
-    public static async Task<PpsClient> NewAsync(string baseUrl, string username, string password,
-        HttpClient httpClient)
-        => await NewAsync(baseUrl, username, password, httpClient,
-            new JsonSerializerOptions(JsonSerializerDefaults.Web));
-
-    private PpsClient(HttpClient httpClient, PpsTokenStore tokenStore, JsonSerializerOptions jsonOptions)
-    {
         _httpClient = httpClient;
         _tokenStore = tokenStore;
         _jsonOpts = jsonOptions;
+    }
+
+    public PpsClient(PpsClientConfiguration config, HttpClient httpClient)
+        : this(config, httpClient, new JsonSerializerOptions(JsonSerializerDefaults.Web))
+    {
     }
 
     public async Task<TResponse> GenericGet<TResponse>(string relativeUri, CancellationToken workToken = default)
@@ -48,7 +37,7 @@ public class PpsClient
 
         var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, workToken);
         response.EnsureSuccessStatusCode();
-        
+
 #if DEBUG
         Console.WriteLine("response = \n" + await response.Content.ReadAsStringAsync(workToken));
 #endif
@@ -69,7 +58,7 @@ public class PpsClient
 
         var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, workToken);
         response.EnsureSuccessStatusCode();
-        
+
 #if DEBUG
         Console.WriteLine("response = \n" + await response.Content.ReadAsStringAsync(workToken));
 #endif
@@ -85,7 +74,7 @@ public class PpsClient
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", await _tokenStore.Fetch());
 
         var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, workToken);
-        
+
 #if DEBUG
         Console.WriteLine("response = \n" + await response.Content.ReadAsStringAsync(workToken));
 #endif
@@ -99,15 +88,16 @@ public class PpsClient
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, relativeUri);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", await _tokenStore.Fetch());
-        
+
         var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, workToken);
         response.EnsureSuccessStatusCode();
-        
+
 #if DEBUG
-        Console.WriteLine("response = \n" + await response.Content.ReadAsStringAsync(workToken));
+        Console.WriteLine("response = \n" + (await response.Content.ReadAsStringAsync(workToken)).Substring(0, 3) +
+                          "xxx");
 #endif
-        var stringResponse =  (await response.Content.ReadAsStringAsync(workToken));
-        
+        var stringResponse = (await response.Content.ReadAsStringAsync(workToken));
+
         // Trim leading and trailing '"'
         if (stringResponse.StartsWith('"') && stringResponse.EndsWith('"'))
             stringResponse = stringResponse.Substring(1, stringResponse.Length - 2);

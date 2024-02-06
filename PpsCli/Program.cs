@@ -23,7 +23,7 @@ var noSslClient = new HttpClient(new HttpClientHandler()
     ClientCertificateOptions = ClientCertificateOption.Manual,
     ServerCertificateCustomValidationCallback = (_, _, _, _) => true
 });
-var client = await PpsClient.NewAsync(config.Url, config.Username, config.Password, noSslClient);
+var client = new PpsClient(config, noSslClient);
 
 var builder = CoconaApp.CreateBuilder();
 
