@@ -70,15 +70,16 @@ public static class SecretsFile
 
         var parallelOpts = new ParallelOptions()
         {
+            CancellationToken = workToken,
             MaxDegreeOfParallelism = 5,
         };
 
         System.Collections.Concurrent.ConcurrentDictionary<string, SecretsFileEntry> bagOfSecrets = new();
-        await Parallel.ForEachAsync(secretsMap.PpsSecrets, parallelOpts, async (entry, _workToken) =>
+        await Parallel.ForEachAsync(secretsMap.PpsSecrets, parallelOpts, async (entry, innerToken) =>
         {
             var (secretName, id) = entry;
-            var ppsEntryTask = ppsClient.GetEntry(id);
-            var passwordTask = ppsClient.GetPassword(id);
+            var ppsEntryTask = ppsClient.GetEntry(id, innerToken);
+            var passwordTask = ppsClient.GetPassword(id, innerToken);
             await Task.WhenAll(ppsEntryTask, passwordTask);
             var (ppsEntry, password) = Tuple.Create(ppsEntryTask.Result, passwordTask.Result);
             bagOfSecrets[useSecretName ? secretName : id.ToString()] = new SecretsFileEntry(

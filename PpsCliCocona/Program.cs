@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.Diagnostics;
 using System.Text.Json;
 using PpsCommon;
 using PpsCommon.PpsClientExtensions;
@@ -6,99 +7,50 @@ using Cocona;
 using Cocona.Filters;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Configuration;
 using Polly;
 using Polly.Extensions.Http;
 using PpsCli;
 
-
-// catch (Exception ex)
-// {
-//     Console.Error.WriteLine($"Error: {ex.Message}. [PPS_URL PPS_USERNAME PPS_PASSWORD] must be set.");
-//     Environment.Exit(1);
-// }
-// UNSAFE, settings for testing only. (SSL-Disabled!)
-var noSslClient = new HttpClient(new HttpClientHandler()
+class Program
 {
-    ClientCertificateOptions = ClientCertificateOption.Manual,
-    ServerCertificateCustomValidationCallback = (_, _, _, _) => true
-});
-// var client = new PpsClient(new PpsClientConfiguration(config.Url, config.Username, config.Password), noSslClient);
-
-var builder = CoconaApp.CreateBuilder();
-builder.Services.AddHttpClient<PpsClient>()
-    // .ConfigureHttpClient((sp, httpClient) =>
-    // {
-    //     // var options = sp.GetRequiredService<IOptions<SomeOptions>>().Value;
-    //     // httpClient.BaseAddress = options.Url;
-    //     // httpClient.Timeout = options.RequestTimeout;
-    // })
-    .SetHandlerLifetime(TimeSpan.FromMinutes(5))
-    .ConfigurePrimaryHttpMessageHandler(x => new HttpClientHandler()
+    static void Main(string[] args)
     {
-        ClientCertificateOptions = ClientCertificateOption.Manual,
-        ServerCertificateCustomValidationCallback = (_, _, _, _) => true
-
-    })
-    .AddPolicyHandler(GetRetryPolicy())
-    ;
+        var builder = CoconaApp.CreateBuilder(args, options =>
+        {
+            options.TreatPublicMethodsAsCommands = true;
+            options.EnableShellCompletionSupport = true;
+        });
+        
+        builder.Services.AddHttpClient<PpsClient>()
+            // .ConfigureHttpClient((sp, httpClient) =>
+            // {
+            //     // var options = sp.GetRequiredService<IOptions<SomeOptions>>().Value;
+            //     // httpClient.BaseAddress = options.Url;
+            //     // httpClient.Timeout = options.RequestTimeout;
+            // })
+            .SetHandlerLifetime(TimeSpan.FromMinutes(5))
+            .ConfigurePrimaryHttpMessageHandler(x => new HttpClientHandler()
+            {
+                ClientCertificateOptions = ClientCertificateOption.Manual,
+                ServerCertificateCustomValidationCallback = (_, _, _, _) => true
+            })
+            .AddPolicyHandler(GetRetryPolicy())
+            ;
+        Console.Error.WriteLine("Todo: Still using no ssl-http-client");
 
 #if DEBUG
-    // builder.Logging.AddDebug();
-    builder.Logging.AddEventSourceLogger();
-    // builder.Logging.AddJsonConsole();
-    // builder.Logging.AddConsole();
-    // builder.Logging.AddSimpleConsole();
+        builder.Logging.AddDebug();
 #else
-    builder.Logging.AddSystemdConsole();
+        builder.Logging.AddSystemdConsole();
 #endif
 
-var app = builder.Build();
+        var app = builder.Build();
+        app.AddCommands<CliRootCommands>();
 
-app.AddCommand("legacy", async (
-    CoconaAppContext ctx,
-    [Argument(Description = "Path to a .json file to parse")] [FileExists] string filepath,
-    OutputParams outputParams,
-    PpsConfigParams configParams,
-    IHttpClientFactory clientFactory
-) =>
-{
-    (string? Url, string? Username,string? Password) config = PpsClientConfiguration.ParseEnvironmentVariables();
-    // handle required url, username, password
-    config.Url = configParams.Url ?? config.Url
-       ?? throw new Exception("Missing ENV-Variable PPS_URL, --Url, -l");
-    config.Username = configParams.Username ?? config.Username
-        ?? throw new Exception("Missing ENV-Variable PPS_USERNAME, --username, -u");
-    config.Password = configParams.Password ?? config.Password
-        ?? throw new Exception("Missing ENV-Variable PPS_PASSWORD, --password, -p");
-    var ppsConfig = new PpsClientConfiguration(config.Url, config.Username, config.Password);
-    
-    // - TODO: remove debug
-    var watch = System.Diagnostics.Stopwatch.StartNew();
-    
-    var myclient = new PpsClient(ppsConfig, clientFactory.CreateClient(nameof(PpsClient)));
-    
-    //
-    var content = await SecretsFile.ParallelBuildJsonString(myclient, filepath, ctx.CancellationToken);
-    // var content = await SecretsFile.BuildJsonString(myclient, filepath, ctx.CancellationToken);
-    if (outputParams.Output is not null)
-    {
-        WriteToFile(outputParams, content);
-        Console.WriteLine($"successfully generated from file: '{filepath}' to: {outputParams.Output}");
-    }
-    else
-    {
-        Console.WriteLine(content);
-    }
-    
-    // TODO - remove debug
-    watch.Stop();
-    Console.WriteLine("time in ms: "+ watch.ElapsedMilliseconds);
-});
+     
 
-// app.AddCommand("server-info", async (OutputParams outputParams)
-//         => HandleJsonRequest(outputParams, await client.AboutServer()))
-//     .WithDescription("Returns info about the pps-server's configuration");
-//
+
 // app.AddCommand("folder-root", async (OutputParams outputParams)
 //         => HandleJsonRequest(outputParams, await client.GetFolderRoot()))
 //     .WithDescription("Gets the whole tree the user can see. Passwords are not included in this view");
@@ -139,64 +91,120 @@ app.AddCommand("legacy", async (
 //         => HandleJsonRequest(outputParams, await client.ClientConfiguration(clientName)))
 //     .WithDescription("Returns the server-enforced client configuration");
 
-app.Run();
-
-
-
-
-
-
-
-
-
-
-
-static void HandleJsonRequest<T>(OutputParams outputParams, T obj, bool writeIndented = true)
-    => HandleStringRequest(outputParams, JsonSerializer.Serialize(
-        obj, new JsonSerializerOptions { WriteIndented = writeIndented }));
-
-static void HandleStringRequest(OutputParams outputParams, string output)
-{
-    if (outputParams.Output is null)
-    {
-        Console.WriteLine(output);
+        app.Run();
     }
-    else
+    
+    static IAsyncPolicy<HttpResponseMessage> GetRetryPolicy()
     {
-        WriteToFile(outputParams, output);
-        Console.WriteLine($"successfully wrote file: {Path.GetFullPath(outputParams.Output)}");
+        return HttpPolicyExtensions
+            .HandleTransientHttpError()
+            .OrResult(msg => msg.StatusCode == System.Net.HttpStatusCode.NotFound)
+            .WaitAndRetryAsync(retryCount:6, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2,
+                retryAttempt)));
     }
 }
 
-static void WriteToFile(OutputParams outputParams, string text)
+public class CliRootCommands
 {
-    var directoryPath = Path.GetDirectoryName(outputParams.Output);
-    if (!Directory.Exists(directoryPath) && !string.IsNullOrEmpty(directoryPath))
+    [Command(Description = "Provide appsettings.json to generated the appsettings.secret.json")]
+    public async Task Legacy(
+        [Argument(Description = "Path to a .json file to parse")] [FileExists]
+        string filepath, 
+        OutputParams outputParams, 
+        PpsConfigParams configParams,
+        [FromService]CoconaAppContext ctx,
+        [FromService]IHttpClientFactory clientFactory
+    )
     {
-        Directory.CreateDirectory(directoryPath);
+        var myclient = SetupClient(configParams, clientFactory);
+
+        // - TODO: remove debug
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        
+        var content = await SecretsFile.ParallelBuildJsonString(myclient, filepath, ctx.CancellationToken);
+        // var content = await SecretsFile.BuildJsonString(myclient, filepath, ctx.CancellationToken);
+        if (outputParams.Output is not null)
+        {
+            WriteToFile(outputParams, content);
+            Console.WriteLine($"successfully generated from file: '{filepath}' to: {outputParams.Output}");
+        }
+        else
+        {
+            Console.WriteLine(content);
+        }
+    
+        // TODO - remove debug
+        watch.Stop();
+        Console.WriteLine("time in ms: "+ watch.ElapsedMilliseconds);
+    }
+    
+    [Command(Description = "Returns info about the pps-server's configuration")]
+    public async Task ServerInfo(
+        PpsConfigParams configParams,
+        OutputParams outputParams,
+        [FromService]CoconaAppContext ctx,
+        [FromService]IHttpClientFactory factory)
+    {
+        var client = SetupClient(configParams, factory);
+        HandleJsonRequest(outputParams, await client.AboutServer(ctx.CancellationToken));
+    }
+    
+    // helper methods:
+    private static void HandleJsonRequest<T>(OutputParams outputParams, T obj, bool writeIndented = true)
+        => HandleStringRequest(outputParams, JsonSerializer.Serialize(
+            obj, new JsonSerializerOptions { WriteIndented = writeIndented }));
+
+    private static void HandleStringRequest(OutputParams outputParams, string output)
+    {
+        if (outputParams.Output is null)
+        {
+            Console.WriteLine(output);
+        }
+        else
+        {
+            WriteToFile(outputParams, output);
+            Console.WriteLine($"successfully wrote file: {Path.GetFullPath(outputParams.Output)}");
+        }
     }
 
-    string fullPath = Path.GetFullPath(outputParams.Output!);
-    if (outputParams.Append && File.Exists(fullPath))
+    private static void WriteToFile(OutputParams outputParams, string text)
     {
-        text = $"{Environment.NewLine}{text}";
-        File.AppendAllText(fullPath, text);
+        var directoryPath = Path.GetDirectoryName(outputParams.Output);
+        if (!Directory.Exists(directoryPath) && !string.IsNullOrEmpty(directoryPath))
+        {
+            Directory.CreateDirectory(directoryPath);
+        }
+
+        string fullPath = Path.GetFullPath(outputParams.Output!);
+        if (outputParams.Append && File.Exists(fullPath))
+        {
+            text = $"{Environment.NewLine}{text}";
+            File.AppendAllText(fullPath, text);
+        }
+        else
+        {
+            File.WriteAllText(fullPath, text);
+        }
     }
-    else
+
+    private static PpsClient SetupClient(PpsConfigParams? ppsConfigParams, IHttpClientFactory httpClientFactory)
     {
-        File.WriteAllText(fullPath, text);
+        (string? Url, string? Username,string? Password) config = PpsClientConfiguration.ParseEnvironmentVariables();
+        // handle required url, username, password
+        config.Url = ppsConfigParams?.Url ?? config.Url
+            ?? throw new Exception("Missing ENV-Variable PPS_URL, --Url, -l");
+        config.Username = ppsConfigParams?.Username ?? config.Username
+            ?? throw new Exception("Missing ENV-Variable PPS_USERNAME, --username, -u");
+        config.Password = ppsConfigParams?.Password ?? config.Password
+            ?? throw new Exception("Missing ENV-Variable PPS_PASSWORD, --password, -p");
+        var ppsConfig = new PpsClientConfiguration(config.Url, config.Username, config.Password);
+
+        var ppsClient = new PpsClient(ppsConfig, httpClientFactory.CreateClient(nameof(PpsClient)));
+        return ppsClient;
     }
 }
 
-static IAsyncPolicy<HttpResponseMessage> GetRetryPolicy()
-{
-    return HttpPolicyExtensions
-        .HandleTransientHttpError()
-        .OrResult(msg => msg.StatusCode == System.Net.HttpStatusCode.NotFound)
-        .WaitAndRetryAsync(retryCount:6, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2,
-            retryAttempt)));
-}
-
+// helper structs for Cocona:
 public record OutputParams(
     [Option('o', Description = "Write the output into a file instead of to std-out.")]
     string? Output,

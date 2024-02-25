@@ -1,11 +1,11 @@
-﻿<component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="PpsCli NO-ENV appsettings.secret" type="DotNetProject" factoryName=".NET Project">
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="PpsCli wrong-url" type="DotNetProject" factoryName=".NET Project">
     <option name="EXE_PATH" value="$PROJECT_DIR$/PpsCliCocona/bin/Debug/net8.0/PpsCliCocona.exe" />
     <option name="PROGRAM_PARAMETERS" value="legacy appsettings.json -o appsettings.secret.json -u user -l https://localhost:10001" />
     <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/PpsCliCocona" />
     <option name="PASS_PARENT_ENVS" value="1" />
     <envs>
-      <env name="PPS_PASSWORD" value="password123" />
+      <env name="PPS_PASSWORD" value="password12" />
     </envs>
     <option name="USE_EXTERNAL_CONSOLE" value="0" />
     <option name="USE_MONO" value="0" />
