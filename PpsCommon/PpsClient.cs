@@ -13,6 +13,7 @@ public class PpsClient
 
     public PpsClient(PpsClientConfiguration config, HttpClient httpClient, JsonSerializerOptions jsonOptions)
     {
+        Console.WriteLine(config);
         httpClient.BaseAddress = new Uri(config.Url);
         httpClient.DefaultRequestHeaders.Clear();
         httpClient.DefaultRequestHeaders.Add("Cache-Control", "no-cache");
