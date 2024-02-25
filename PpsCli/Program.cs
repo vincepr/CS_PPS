@@ -3,19 +3,21 @@ using System.Text.Json;
 using PpsCommon;
 using PpsCommon.PpsClientExtensions;
 using Cocona;
+using Cocona.Filters;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Polly;
+using Polly.Extensions.Http;
 using PpsCli;
 
-PpsClientConfiguration? config = null;
-try
-{
+(string? Url, string? Username,string? Password) config;
+
     config = PpsClientConfiguration.ParseEnvironmentVariables();
-}
-catch (Exception ex)
-{
-    Console.Error.WriteLine($"Error: {ex.Message}. [PPS_URL PPS_USERNAME PPS_PASSWORD] must be set.");
-    Environment.Exit(1);
-}
+// catch (Exception ex)
+// {
+//     Console.Error.WriteLine($"Error: {ex.Message}. [PPS_URL PPS_USERNAME PPS_PASSWORD] must be set.");
+//     Environment.Exit(1);
+// }
 
 // UNSAFE, settings for testing only. (SSL-Disabled!)
 var noSslClient = new HttpClient(new HttpClientHandler()
@@ -23,9 +25,25 @@ var noSslClient = new HttpClient(new HttpClientHandler()
     ClientCertificateOptions = ClientCertificateOption.Manual,
     ServerCertificateCustomValidationCallback = (_, _, _, _) => true
 });
-var client = new PpsClient(config, noSslClient);
+var client = new PpsClient(new PpsClientConfiguration(config.Url, config.Username, config.Password), noSslClient);
 
 var builder = CoconaApp.CreateBuilder();
+builder.Services.AddHttpClient<PpsClient>()
+    // .ConfigureHttpClient((sp, httpClient) =>
+    // {
+    //     // var options = sp.GetRequiredService<IOptions<SomeOptions>>().Value;
+    //     // httpClient.BaseAddress = options.Url;
+    //     // httpClient.Timeout = options.RequestTimeout;
+    // })
+    .SetHandlerLifetime(TimeSpan.FromMinutes(5))
+    .ConfigurePrimaryHttpMessageHandler(x => new HttpClientHandler()
+    {
+        ClientCertificateOptions = ClientCertificateOption.Manual,
+        ServerCertificateCustomValidationCallback = (_, _, _, _) => true
+
+    })
+    .AddPolicyHandler(GetRetryPolicy())
+    ;
 
 #if DEBUG
     builder.Logging.AddDebug();
@@ -107,6 +125,8 @@ app.Run();
 
 
 
+
+
 static void HandleJsonRequest<T>(OutputParams outputParams, T obj, bool writeIndented = true)
     => HandleStringRequest(outputParams, JsonSerializer.Serialize(
         obj, new JsonSerializerOptions { WriteIndented = writeIndented }));
@@ -144,6 +164,15 @@ static void WriteToFile(OutputParams outputParams, string text)
     }
 }
 
+static IAsyncPolicy<HttpResponseMessage> GetRetryPolicy()
+{
+    return HttpPolicyExtensions
+        .HandleTransientHttpError()
+        .OrResult(msg => msg.StatusCode == System.Net.HttpStatusCode.NotFound)
+        .WaitAndRetryAsync(retryCount:6, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2,
+            retryAttempt)));
+}
+
 public record OutputParams(
     [Option('o', Description = "Write the output into a file instead of to std-out.")]
     string? Output,
@@ -158,3 +187,33 @@ public class FileExists : ValidationAttribute
             ? ValidationResult.Success
             : new ValidationResult($"The path '{value}' is not found.");
 }
+
+class SampleCommandFilterWithDI : ICommandFilter
+{
+    private readonly ILogger _logger;
+
+    public SampleCommandFilterWithDI(ILogger<SampleCommandFilterWithDI> logger)
+    {
+        _logger = logger;
+    }
+
+    public async ValueTask<int> OnCommandExecutionAsync(CoconaCommandExecutingContext ctx, CommandExecutionDelegate next)
+    {
+        _logger.LogInformation($"[SampleCommandFilterWithDI] Before Command: {ctx.Command.Name}");
+        try
+        {
+            return await next(ctx);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogInformation($"[SampleCommandFilterWithDI] Exception: {ex.GetType().FullName}: {ex.Message}");
+            throw;
+        }
+        finally
+        {
+            _logger.LogInformation($"[SampleCommandFilterWithDI] End Command: {ctx.Command.Name}");
+        }
+    }
+}
+
+
