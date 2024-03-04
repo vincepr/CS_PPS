@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
 using PpsCommon.Auth;
 
 namespace PpsCommon;
@@ -11,8 +12,9 @@ public class PpsClient
     private readonly PpsTokenStore _tokenStore;
     private readonly JsonSerializerOptions _jsonOpts;
 
-    public PpsClient(PpsClientConfiguration config, HttpClient httpClient, JsonSerializerOptions jsonOptions)
+    private PpsClient(PpsClientConfiguration config, IHttpClientFactory httpClientFactory, JsonSerializerOptions jsonOptions)
     {
+        var httpClient = httpClientFactory.CreateClient(nameof(PpsClient));
         httpClient.BaseAddress = new Uri(config.Url);
         httpClient.DefaultRequestHeaders.Clear();
         httpClient.DefaultRequestHeaders.Add("Cache-Control", "no-cache");
@@ -25,11 +27,11 @@ public class PpsClient
         _jsonOpts = jsonOptions;
     }
 
-    public PpsClient(PpsClientConfiguration config, HttpClient httpClient)
-        : this(config, httpClient, new JsonSerializerOptions(JsonSerializerDefaults.Web))
+    public PpsClient(PpsClientConfiguration config, IHttpClientFactory httpClientFactory)
+        : this(config, httpClientFactory, new JsonSerializerOptions(JsonSerializerDefaults.Web))
     {
     }
-
+    
     public async Task<TResponse> GenericGet<TResponse>(string relativeUri, CancellationToken workToken = default)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, relativeUri);

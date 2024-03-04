@@ -5,6 +5,7 @@ using PpsCommon;
 using PpsCommon.PpsClientExtensions;
 using Cocona;
 using Cocona.Filters;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Configuration;
@@ -21,6 +22,21 @@ class Program
             options.TreatPublicMethodsAsCommands = true;
             options.EnableShellCompletionSupport = true;
         });
+
+        Console.WriteLine($"ProcessPath={Environment.ProcessPath}");
+        var configBuilder = new ConfigurationBuilder()
+            // .SetBasePath(Environment.ProcessPath)
+            
+            .SetBasePath(Directory.GetCurrentDirectory())
+            .AddJsonFile("appsettings.json", optional: true)
+            .AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")}.json", optional: true)
+            .AddEnvironmentVariables()
+            ;
+        
+        var testConfig = configBuilder.Build();
+        var dict = testConfig.GetSection("PpsSecrets").GetChildren().ToDictionary(x => x.Key, x => x.Value);
+        Console.WriteLine(string.Join("\n", dict.Select(kvp => kvp.Key + ": " + kvp.Value.ToString())));
+        Console.WriteLine(testConfig.GetValue<string>("Test"));
         
         builder.Services.AddHttpClient<PpsClient>()
             // .ConfigureHttpClient((sp, httpClient) =>
@@ -51,10 +67,10 @@ class Program
      
 
 
-// app.AddCommand("folder-root", async (OutputParams outputParams)
-//         => HandleJsonRequest(outputParams, await client.GetFolderRoot()))
-//     .WithDescription("Gets the whole tree the user can see. Passwords are not included in this view");
-//
+app.AddCommand("folder-root", async (OutputParams outputParams, [FromService]PpsClient client)
+        => HandleJsonRequest(outputParams, await client.GetFolderRoot()))
+    .WithDescription("Gets the whole tree the user can see. Passwords are not included in this view");
+
 // app.AddCommand("folder", async (OutputParams outputParams, [Argument] string groupId)
 //         => HandleJsonRequest(outputParams, await client.GetFolderRoot()))
 //     .WithDescription("Gets everything inside provided folder");
@@ -101,6 +117,44 @@ class Program
             .OrResult(msg => msg.StatusCode == System.Net.HttpStatusCode.NotFound)
             .WaitAndRetryAsync(retryCount:6, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2,
                 retryAttempt)));
+    }
+    
+    // helper methods:
+    private static void HandleJsonRequest<T>(OutputParams outputParams, T obj, bool writeIndented = true)
+        => HandleStringRequest(outputParams, JsonSerializer.Serialize(
+            obj, new JsonSerializerOptions { WriteIndented = writeIndented }));
+
+    private static void HandleStringRequest(OutputParams outputParams, string output)
+    {
+        if (outputParams.Output is null)
+        {
+            Console.WriteLine(output);
+        }
+        else
+        {
+            WriteToFile(outputParams, output);
+            Console.WriteLine($"successfully wrote file: {Path.GetFullPath(outputParams.Output)}");
+        }
+    }
+    
+    private static void WriteToFile(OutputParams outputParams, string text)
+    {
+        var directoryPath = Path.GetDirectoryName(outputParams.Output);
+        if (!Directory.Exists(directoryPath) && !string.IsNullOrEmpty(directoryPath))
+        {
+            Directory.CreateDirectory(directoryPath);
+        }
+
+        string fullPath = Path.GetFullPath(outputParams.Output!);
+        if (outputParams.Append && File.Exists(fullPath))
+        {
+            text = $"{Environment.NewLine}{text}";
+            File.AppendAllText(fullPath, text);
+        }
+        else
+        {
+            File.WriteAllText(fullPath, text);
+        }
     }
 }
 
@@ -199,7 +253,7 @@ public class CliRootCommands
             ?? throw new Exception("Missing ENV-Variable PPS_PASSWORD, --password, -p");
         var ppsConfig = new PpsClientConfiguration(config.Url, config.Username, config.Password);
 
-        var ppsClient = new PpsClient(ppsConfig, httpClientFactory.CreateClient(nameof(PpsClient)));
+        var ppsClient = new PpsClient(ppsConfig, httpClientFactory);
         return ppsClient;
     }
 }

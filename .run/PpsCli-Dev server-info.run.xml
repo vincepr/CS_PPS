@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="PpsCli server-info" type="DotNetProject" factoryName=".NET Project">
+  <configuration default="false" name="PpsCli-Dev server-info" type="DotNetProject" factoryName=".NET Project">
     <option name="EXE_PATH" value="$PROJECT_DIR$/PpsCliCocona/bin/Debug/net8.0/PpsCliCocona.exe" />
     <option name="PROGRAM_PARAMETERS" value="server-info" />
     <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/PpsCliCocona" />
@@ -8,6 +8,7 @@
       <env name="PPS_PASSWORD" value="password123" />
       <env name="PPS_URL" value="https://localhost:10001" />
       <env name="PPS_USERNAME" value="user" />
+      <env name="ASPNETCORE_ENVIRONMENT" value="Development" />
     </envs>
     <option name="USE_EXTERNAL_CONSOLE" value="0" />
     <option name="USE_MONO" value="0" />
